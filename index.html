@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SESS | สยาม เอ็นจิเนียริ่ง โซลูชั่น เซอร์วิส</title>
 <meta name="description" content="บริษัท สยาม เอ็นจิเนียริ่ง โซลูชั่น เซอร์วิส จำกัด (SESS) ผู้เชี่ยวชาญงานวิศวกรรมอาคาร บริหารอาคาร (FM) พลังงาน และ Smart IoT สำหรับโรงพยาบาลและอาคารขนาดใหญ่ ประสบการณ์กว่า 30 ปี">
-<meta property="og:title" content="SESS — Siam Engineering Solution Service Co., Ltd.">
+<meta property="og:title" content="SESS — Siam Engineering Solution Services">
 <meta property="og:description" content="Building engineering, Facilities Management, energy and Smart IoT solutions for hospitals and large facilities. 30+ years of experience.">
 <meta property="og:url" content="https://sess-th.com">
 <link rel="icon" href="logo.svg" type="image/svg+xml">
@@ -14,8 +14,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --navy:#0B2545; --navy-2:#13315C; --ink:#1B2433; --muted:#5B6678;
-  --line:#E3E7EE; --bg:#FFFFFF; --soft:#F4F6FA; --gold:#F2B33D; --gold-d:#C98A12;
+  --navy:#06003F; --navy-2:#15125E; --ink:#1B2433; --muted:#5B6678;
+  --line:#E3E7EE; --bg:#FFFFFF; --soft:#F4F6FA; --gold:#C9963A; --gold-d:#A9771F;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -25,10 +25,10 @@ html[lang=th] .en, html[lang=en] .th{display:none!important}
 a{color:inherit;text-decoration:none}
 .wrap{max-width:1140px;margin:0 auto;padding:0 20px}
 /* header */
-header{position:sticky;top:0;z-index:50;background:rgba(11,37,69,.97);backdrop-filter:blur(6px);color:#fff}
+header{position:sticky;top:0;z-index:50;background:rgba(6,0,63,.97);backdrop-filter:blur(6px);color:#fff}
 .nav{display:flex;align-items:center;justify-content:space-between;height:68px;gap:16px}
 .brand{display:flex;align-items:center;gap:12px}
-.logo{width:44px;height:44px}
+.logo{width:46px;height:46px;background:#EDE9E6;border-radius:10px;padding:5px}
 .brand b{display:block;font-size:15px;line-height:1.2}
 .brand small{display:block;font-size:11.5px;opacity:.75;line-height:1.3}
 .menu{display:flex;gap:22px;font-size:14.5px}
@@ -38,7 +38,7 @@ header{position:sticky;top:0;z-index:50;background:rgba(11,37,69,.97);backdrop-f
 .lang button.on{background:var(--gold);color:var(--navy)}
 @media (max-width:900px){.menu{display:none}.brand small{display:none}}
 /* hero */
-.hero{background:linear-gradient(135deg,var(--navy) 0%,var(--navy-2) 60%,#1d4e89 100%);color:#fff;position:relative;overflow:hidden}
+.hero{background:linear-gradient(135deg,var(--navy) 0%,var(--navy-2) 60%,#262a7a 100%);color:#fff;position:relative;overflow:hidden}
 .hero:after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}
 .hero .wrap{position:relative;z-index:1;padding-top:84px;padding-bottom:84px}
 .eyebrow{display:inline-block;font-size:12.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:16px}
@@ -46,10 +46,10 @@ header{position:sticky;top:0;z-index:50;background:rgba(11,37,69,.97);backdrop-f
 .hero p.lead{font-size:clamp(16px,1.6vw,19px);opacity:.88;max-width:720px;margin-top:20px}
 .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
 .btn{display:inline-block;padding:13px 24px;border-radius:8px;font-weight:600;font-size:15px}
-.btn.gold{background:var(--gold);color:var(--navy)}.btn.gold:hover{background:#ffc657}
+.btn.gold{background:var(--gold);color:var(--navy)}.btn.gold:hover{background:#dcab52}
 .btn.ghost{border:1px solid rgba(255,255,255,.5);color:#fff}.btn.ghost:hover{background:rgba(255,255,255,.1)}
 /* stats */
-.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:-44px;position:relative;z-index:2;box-shadow:0 12px 30px rgba(11,37,69,.12)}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:-44px;position:relative;z-index:2;box-shadow:0 12px 30px rgba(6,0,63,.12)}
 .stat{background:#fff;padding:22px 16px;text-align:center}
 .stat b{display:block;font:800 30px Inter,sans-serif;color:var(--navy)}
 .stat span{font-size:13.5px;color:var(--muted)}
@@ -81,7 +81,7 @@ section.alt{background:var(--soft)}
 .why span{font-size:14.5px;color:var(--muted)}
 @media (max-width:900px){.about{grid-template-columns:1fr}}
 /* projects */
-.proj .tag{display:inline-block;font-size:12px;font-weight:600;color:var(--navy);background:rgba(11,37,69,.08);border-radius:999px;padding:3px 10px;margin-bottom:12px}
+.proj .tag{display:inline-block;font-size:12px;font-weight:600;color:var(--navy);background:rgba(6,0,63,.08);border-radius:999px;padding:3px 10px;margin-bottom:12px}
 .proj .metric{font:700 15px Inter,"Noto Sans Thai",sans-serif;color:var(--gold-d);margin-top:12px}
 /* awards */
 .award{border-left:4px solid var(--gold);background:#fff;border-radius:10px;padding:20px 22px}
@@ -112,7 +112,7 @@ section.alt{background:var(--soft)}
 .cbox a,.cbox p{font-size:16.5px;line-height:1.6}
 .cbox a:hover{color:var(--gold)}
 @media (max-width:900px){.cgrid{grid-template-columns:1fr}}
-footer{background:#071a33;color:rgba(255,255,255,.6);font-size:13.5px;padding:24px 0}
+footer{background:#03002a;color:rgba(255,255,255,.6);font-size:13.5px;padding:24px 0}
 footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
 </style>
 </head>
@@ -123,7 +123,7 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
     <a class="brand" href="#top">
       <img class="logo" src="logo.svg" alt="SESS">
       <div>
-        <b class="th">สยาม เอ็นจิเนียริ่ง โซลูชั่น เซอร์วิส</b><b class="en">Siam Engineering Solution Service</b>
+        <b class="th">สยาม เอ็นจิเนียริ่ง โซลูชั่น เซอร์วิส</b><b class="en">Siam Engineering Solution Services</b>
         <small class="th">วิศวกรรมอาคาร · บริหารอาคาร · พลังงาน</small><small class="en">Building Engineering · FM · Energy</small>
       </div>
     </a>
@@ -140,7 +140,7 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
 
 <div class="hero" id="top">
   <div class="wrap">
-    <span class="eyebrow">SESS · Siam Engineering Solution Service Co., Ltd.</span>
+    <span class="eyebrow">SESS · Siam Engineering Solution Services</span>
     <h1 class="th">โซลูชันวิศวกรรมอาคารและบริหารอาคารครบวงจร สำหรับโรงพยาบาลและอาคารขนาดใหญ่</h1>
     <h1 class="en">Complete building engineering and facilities management solutions for hospitals and large facilities</h1>
     <p class="lead th">ทีมผู้เชี่ยวชาญประสบการณ์กว่า 30 ปี ในโรงพยาบาลชั้นนำ อาคารพาณิชย์ สถาบันการเงิน และที่พักอาศัย ให้บริการงานวิศวกรรมระบบ พลังงาน ตรวจสอบอาคาร รับเหมาก่อสร้าง เครื่องมือแพทย์ และบริหารอาคาร (FM) ตามมาตรฐาน JCI, HA และ ISO 41001</p>
@@ -171,7 +171,7 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
         <h2 class="en">An engineering partner for buildings that can never stop</h2>
       </div>
       <p class="th">บริษัท สยาม เอ็นจิเนียริ่ง โซลูชั่น เซอร์วิส จำกัด (SESS) ให้บริการด้านวิศวกรรมอาคาร การบริหารจัดการอาคาร (Facilities Management) และการอนุรักษ์พลังงาน โดยทีมผู้บริหารที่ผ่านงานบริหารโรงพยาบาลชั้นนำของประเทศ ได้แก่ เครือพญาไท เปาโล โรงพยาบาลกรุงเทพ รามาธิบดี จุฬาลงกรณ์ BNH และปิยะเวท รวมถึงอาคารสำนักงานใหญ่ธนาคารไทยพาณิชย์และตลาดหลักทรัพย์แห่งประเทศไทย</p>
-      <p class="en">Siam Engineering Solution Service Co., Ltd. (SESS) provides building engineering, Facilities Management and energy conservation services. Our leadership has managed engineering for Thailand's leading hospitals, including the Phyathai and Paolo networks, Bangkok Hospital, Ramathibodi, King Chulalongkorn Memorial, BNH and Piyavate, as well as the Siam Commercial Bank headquarters and the Stock Exchange of Thailand.</p>
+      <p class="en">Siam Engineering Solution Services Co., Ltd. (SESS) provides building engineering, Facilities Management and energy conservation services. Our leadership has managed engineering for Thailand's leading hospitals, including the Phyathai and Paolo networks, Bangkok Hospital, Ramathibodi, King Chulalongkorn Memorial, BNH and Piyavate, as well as the Siam Commercial Bank headquarters and the Stock Exchange of Thailand.</p>
       <p class="th">เราเชื่อว่าอาคารที่ดีต้องปลอดภัย พร้อมใช้งาน ประหยัดพลังงาน และตรวจสอบได้ จึงผสานประสบการณ์ภาคสนามเข้ากับระบบมาตรฐานและเทคโนโลยี AI / Smart IoT</p>
       <p class="en">We believe a good building is safe, always available, energy efficient and auditable. That is why we combine hands-on field experience with proven standards and AI / Smart IoT technology.</p>
     </div>
@@ -312,18 +312,18 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
       <p class="th">ยินดีให้คำปรึกษาเบื้องต้นโดยไม่มีค่าใช้จ่าย</p><p class="en">We are happy to offer an initial consultation free of charge.</p>
     </div>
     <div class="cgrid">
-      <div class="cbox"><small class="th">โทรศัพท์</small><small class="en">Phone</small><a href="tel:+66849789193">084-978-9193</a></div>
-      <div class="cbox"><small class="th">อีเมล</small><small class="en">Email</small><a href="mailto:phd.nirun@gmail.com">phd.nirun@gmail.com</a></div>
+      <div class="cbox"><small class="th">โทรศัพท์</small><small class="en">Phone</small><a href="tel:+66805906743">080-590-6743</a></div>
+      <div class="cbox"><small class="th">อีเมล</small><small class="en">Email</small><a href="mailto:sess.phd@gmail.com">sess.phd@gmail.com</a></div>
       <div class="cbox"><small class="th">ที่อยู่</small><small class="en">Address</small>
         <p class="th">บริษัท สยาม เอ็นจิเนียริ่ง โซลูชั่น เซอร์วิส จำกัด<br>501 ซ.รังสิต-นครนายก 44 ต.ประชาธิปัตย์<br>อ.ธัญบุรี จ.ปทุมธานี 12130</p>
-        <p class="en">Siam Engineering Solution Service Co., Ltd.<br>501 Soi Rangsit-Nakhon Nayok 44, Prachathipat,<br>Thanyaburi, Pathum Thani 12130</p></div>
+        <p class="en">Siam Engineering Solution Services Co., Ltd.<br>501 Soi Rangsit-Nakhon Nayok 44, Prachathipat,<br>Thanyaburi, Pathum Thani 12130</p></div>
     </div>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    <span>© <span id="y">2026</span> <span class="th">บริษัท สยาม เอ็นจิเนียริ่ง โซลูชั่น เซอร์วิส จำกัด</span><span class="en">Siam Engineering Solution Service Co., Ltd.</span></span>
+    <span>© <span id="y">2026</span> <span class="th">บริษัท สยาม เอ็นจิเนียริ่ง โซลูชั่น เซอร์วิส จำกัด</span><span class="en">Siam Engineering Solution Services Co., Ltd.</span></span>
     <span>sess-th.com</span>
   </div>
 </footer>
