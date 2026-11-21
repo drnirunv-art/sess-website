@@ -56,13 +56,52 @@ async function notify(env, question, reply, isFirst) {
     jobs.push(
       fetch("https://api.line.me/v2/bot/message/push", {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${env.LINE_CHANNEL_TOKEN}` },
-        body: JSON.stringify({ to: env.LINE_USER_ID, messages: [{ type: "text", text: text.slice(0, 4900) }] }),
+        headers: { "content-type": "application/json", authorization: `Bearer ${env.LINE_CHANNEL_TOKEN.trim()}` },
+        body: JSON.stringify({ to: env.LINE_USER_ID.trim(), messages: [{ type: "text", text: text.slice(0, 4900) }] }),
       })
     );
   }
   const res = await Promise.allSettled(jobs);
-  res.forEach((r) => r.status === "rejected" && console.error("notify error", r.reason && r.reason.message));
+  for (const r of res) {
+    if (r.status === "rejected") console.error("notify error", r.reason && r.reason.message);
+    else if (!r.value.ok) console.error("notify HTTP", r.value.status, r.value.url.split("/bot")[0], await r.value.text());
+  }
+}
+
+// ---- Setup check: GET /api/notify-test shows which secrets are set (never their values).
+// GET /api/notify-test?code=XXXX (XXXX = last 4 characters of LINE_USER_ID) also sends a
+// test message to LINE and Telegram and shows each service's answer.
+async function notifyTest(url, env) {
+  const t = (v) => (typeof v === "string" ? v.trim() : "");
+  const lineUser = t(env.LINE_USER_ID);
+  const out = {
+    telegram_token_set: !!t(env.TELEGRAM_BOT_TOKEN),
+    telegram_chat_set: !!t(env.TELEGRAM_CHAT_ID),
+    line_token_set: !!t(env.LINE_CHANNEL_TOKEN),
+    line_user_set: !!lineUser,
+    line_user_format_ok: /^U[0-9a-f]{32}$/.test(lineUser),
+  };
+  const code = url.searchParams.get("code");
+  if (!code) return json(out);
+  if (!lineUser || code !== lineUser.slice(-4)) return json({ ...out, error: "wrong_code" }, 403);
+  const text = "✅ ทดสอบแจ้งเตือนจากเว็บ sess-th.com";
+  if (out.line_token_set) {
+    const r = await fetch("https://api.line.me/v2/bot/message/push", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${t(env.LINE_CHANNEL_TOKEN)}` },
+      body: JSON.stringify({ to: lineUser, messages: [{ type: "text", text }] }),
+    });
+    out.line_result = { status: r.status, body: (await r.text()).slice(0, 300) };
+  }
+  if (out.telegram_token_set && out.telegram_chat_set) {
+    const r = await fetch(`https://api.telegram.org/bot${t(env.TELEGRAM_BOT_TOKEN)}/sendMessage`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ chat_id: t(env.TELEGRAM_CHAT_ID), text }),
+    });
+    out.telegram_result = { status: r.status, body: (await r.text()).slice(0, 300) };
+  }
+  return json(out);
 }
 
 async function handleChat(request, env, ctx) {
@@ -137,6 +176,7 @@ export default {
       if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
       return handleChat(request, env, ctx);
     }
+    if (url.pathname === "/api/notify-test") return notifyTest(url, env);
     return env.ASSETS.fetch(request);
   },
 };
