@@ -34,7 +34,8 @@ const json = (obj, status = 200) =>
 
 // ---- Notifications (Telegram + LINE). Each is active only when its secrets are set. ----
 // Telegram: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID  -> every visitor question
-// LINE (Messaging API): LINE_CHANNEL_TOKEN, LINE_USER_ID -> first question of a chat, or any
+// LINE (Messaging API): LINE_CHANNEL_TOKEN + LINE_USER_ID and/or LINE_GROUP_ID (comma-separated
+//   group IDs; the bot tells you a group's ID when it is added to it) -> first question of a chat, or any
 //   message that contains a phone number / email (LINE free plan has a small monthly quota)
 const CONTACT_RE = /(\d[\d\s-]{7,}\d)|([\w.+-]+@[\w-]+\.[\w.]+)/;
 
@@ -52,20 +53,58 @@ async function notify(env, question, reply, isFirst) {
       })
     );
   }
-  if (env.LINE_CHANNEL_TOKEN && env.LINE_USER_ID && (isFirst || CONTACT_RE.test(question))) {
-    jobs.push(
-      fetch("https://api.line.me/v2/bot/message/push", {
-        method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${env.LINE_CHANNEL_TOKEN.trim()}` },
-        body: JSON.stringify({ to: env.LINE_USER_ID.trim(), messages: [{ type: "text", text: text.slice(0, 4900) }] }),
-      })
-    );
+  const lineTargets = [env.LINE_USER_ID, ...String(env.LINE_GROUP_ID || "").split(",")]
+    .map((v) => (typeof v === "string" ? v.trim() : ""))
+    .filter(Boolean);
+  if (env.LINE_CHANNEL_TOKEN && lineTargets.length && (isFirst || CONTACT_RE.test(question))) {
+    for (const to of lineTargets) {
+      jobs.push(
+        fetch("https://api.line.me/v2/bot/message/push", {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${env.LINE_CHANNEL_TOKEN.trim()}` },
+          body: JSON.stringify({ to, messages: [{ type: "text", text: text.slice(0, 4900) }] }),
+        })
+      );
+    }
   }
   const res = await Promise.allSettled(jobs);
   for (const r of res) {
     if (r.status === "rejected") console.error("notify error", r.reason && r.reason.message);
     else if (!r.value.ok) console.error("notify HTTP", r.value.status, r.value.url.split("/bot")[0], await r.value.text());
   }
+}
+
+// ---- LINE webhook (POST /api/line-webhook). Needs secret LINE_CHANNEL_SECRET.
+// When the bot is added to a group (or someone in a group types "groupid"), it replies with the
+// group ID so it can be saved as LINE_GROUP_ID. Replies are free (they don't use the push quota).
+async function lineWebhook(request, env) {
+  const body = await request.text();
+  const secret = typeof env.LINE_CHANNEL_SECRET === "string" ? env.LINE_CHANNEL_SECRET.trim() : "";
+  if (!secret || !env.LINE_CHANNEL_TOKEN) return new Response("ok");
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body));
+  const expected = btoa(String.fromCharCode(...new Uint8Array(sig)));
+  if (request.headers.get("x-line-signature") !== expected) return new Response("bad signature", { status: 401 });
+  let events = [];
+  try {
+    events = JSON.parse(body).events || [];
+  } catch {}
+  for (const ev of events) {
+    const src = ev.source || {};
+    const id = src.groupId || src.roomId;
+    const asked = ev.type === "message" && ev.message?.type === "text" && /^\s*group\s*id\s*$/i.test(ev.message.text || "");
+    if (!id || !ev.replyToken || !(ev.type === "join" || asked)) continue;
+    const text =
+      "สวัสดีครับ SESS แจ้งเตือน พร้อมส่งคำถามจากเว็บ sess-th.com เข้ากลุ่มนี้\n\n" +
+      "นำรหัสกลุ่มด้านล่างไปใส่ใน Cloudflare ชื่อ LINE_GROUP_ID\n\n" + id;
+    const r = await fetch("https://api.line.me/v2/bot/message/reply", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${env.LINE_CHANNEL_TOKEN.trim()}` },
+      body: JSON.stringify({ replyToken: ev.replyToken, messages: [{ type: "text", text }] }),
+    });
+    if (!r.ok) console.error("LINE reply HTTP", r.status, await r.text());
+  }
+  return new Response("ok");
 }
 
 // ---- Setup check: GET /api/notify-test shows which secrets are set (never their values).
@@ -80,6 +119,8 @@ async function notifyTest(url, env) {
     line_token_set: !!t(env.LINE_CHANNEL_TOKEN),
     line_user_set: !!lineUser,
     line_user_format_ok: /^U[0-9a-f]{32}$/.test(lineUser),
+    line_secret_set: !!t(env.LINE_CHANNEL_SECRET),
+    line_groups_set: String(env.LINE_GROUP_ID || "").split(",").filter((v) => /^[CR][0-9a-f]{32}$/.test(v.trim())).length,
   };
   const code = url.searchParams.get("code");
   if (!code) return json(out);
@@ -177,6 +218,7 @@ export default {
       return handleChat(request, env, ctx);
     }
     if (url.pathname === "/api/notify-test") return notifyTest(url, env);
+    if (url.pathname === "/api/line-webhook" && request.method === "POST") return lineWebhook(request, env);
     return env.ASSETS.fetch(request);
   },
 };
