@@ -21,6 +21,7 @@ Company facts (use only these; never invent anything else):
 Rules:
 - Never quote prices, discounts, timelines or guarantees. For quotations, site surveys or project details, invite the visitor to call 065-653-5655 or email sess.phd@gmail.com.
 - Never give names of individual people. Never share a tax ID or any personal data.
+- If the visitor wants a call back, a quotation or a site survey, invite them to type their name and phone number (or email) in this chat; the SESS team is notified and will contact them. Thank them when they do.
 - If you don't know, say so and give the contact details. Do not make up projects, clients or certifications.
 - If asked about unrelated topics, politely say you can only help with SESS services.
 - Do not give detailed safety-critical engineering instructions (e.g. live electrical work); recommend a professional site visit instead.`;
@@ -31,7 +32,40 @@ const json = (obj, status = 200) =>
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
   });
 
-async function handleChat(request, env) {
+// ---- Notifications (Telegram + LINE). Each is active only when its secrets are set. ----
+// Telegram: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID  -> every visitor question
+// LINE (Messaging API): LINE_CHANNEL_TOKEN, LINE_USER_ID -> first question of a chat, or any
+//   message that contains a phone number / email (LINE free plan has a small monthly quota)
+const CONTACT_RE = /(\d[\d\s-]{7,}\d)|([\w.+-]+@[\w-]+\.[\w.]+)/;
+
+async function notify(env, question, reply, isFirst) {
+  const time = new Date().toLocaleString("th-TH", { timeZone: "Asia/Bangkok" });
+  const text =
+    `💬 คำถามใหม่จากเว็บ sess-th.com\n🕒 ${time}\n\n❓ ${question}\n\n🤖 AI ตอบ: ${(reply || "-").slice(0, 600)}`;
+  const jobs = [];
+  if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID) {
+    jobs.push(
+      fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT_ID, text }),
+      })
+    );
+  }
+  if (env.LINE_CHANNEL_TOKEN && env.LINE_USER_ID && (isFirst || CONTACT_RE.test(question))) {
+    jobs.push(
+      fetch("https://api.line.me/v2/bot/message/push", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${env.LINE_CHANNEL_TOKEN}` },
+        body: JSON.stringify({ to: env.LINE_USER_ID, messages: [{ type: "text", text: text.slice(0, 4900) }] }),
+      })
+    );
+  }
+  const res = await Promise.allSettled(jobs);
+  res.forEach((r) => r.status === "rejected" && console.error("notify error", r.reason && r.reason.message));
+}
+
+async function handleChat(request, env, ctx) {
   let body;
   try {
     body = await request.json();
@@ -46,26 +80,32 @@ async function handleChat(request, env) {
   if (!messages.length || messages[messages.length - 1].role !== "user") {
     return json({ error: "bad_request" }, 400);
   }
+  const question = messages[messages.length - 1].content;
+  const isFirst = messages.filter((m) => m.role === "user").length === 1;
+  let reply = "";
   if (env.GEMINI_API_KEY) {
     try {
-      const reply = await askGemini(messages, env.GEMINI_API_KEY);
-      if (reply) return json({ reply });
+      reply = await askGemini(messages, env.GEMINI_API_KEY);
     } catch (err) {
       console.error("Gemini error", err && err.message);
     }
   }
-  try {
-    const out = await env.AI.run(MODEL, {
-      messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
-      max_tokens: 500,
-      temperature: 0.3,
-    });
-    const reply = (out && (out.response ?? out.result?.response)) || "";
-    return json({ reply: String(reply).trim() });
-  } catch (err) {
-    console.error("AI error", err && err.message);
-    return json({ error: "ai_unavailable" }, 503);
+  if (!reply) {
+    try {
+      const out = await env.AI.run(MODEL, {
+        messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
+        max_tokens: 500,
+        temperature: 0.3,
+      });
+      reply = String((out && (out.response ?? out.result?.response)) || "").trim();
+    } catch (err) {
+      console.error("AI error", err && err.message);
+    }
   }
+  const notifying = notify(env, question, reply || "(AI ไม่พร้อมใช้งาน)", isFirst);
+  if (ctx && ctx.waitUntil) ctx.waitUntil(notifying);
+  if (!reply) return json({ error: "ai_unavailable" }, 503);
+  return json({ reply });
 }
 
 async function askGemini(messages, key) {
@@ -91,11 +131,11 @@ async function askGemini(messages, key) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === "/api/chat") {
       if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
-      return handleChat(request, env);
+      return handleChat(request, env, ctx);
     }
     return env.ASSETS.fetch(request);
   },
