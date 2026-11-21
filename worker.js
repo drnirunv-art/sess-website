@@ -34,8 +34,8 @@ const json = (obj, status = 200) =>
 
 // ---- Notifications (Telegram + LINE). Each is active only when its secrets are set. ----
 // Telegram: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID  -> every visitor question
-// LINE (Messaging API): LINE_CHANNEL_TOKEN + LINE_USER_ID and/or LINE_GROUP_ID (comma-separated
-//   group IDs; the bot tells you a group's ID when it is added to it) -> first question of a chat, or any
+// LINE (Messaging API): LINE_CHANNEL_TOKEN + LINE_USER_ID, plus every group the bot was added to
+//   (saved automatically, see LINE webhook below) -> first question of a chat, or any
 //   message that contains a phone number / email (LINE free plan has a small monthly quota)
 const CONTACT_RE = /(\d[\d\s-]{7,}\d)|([\w.+-]+@[\w-]+\.[\w.]+)/;
 
@@ -53,9 +53,13 @@ async function notify(env, question, reply, isFirst) {
       })
     );
   }
-  const lineTargets = [env.LINE_USER_ID, ...String(env.LINE_GROUP_ID || "").split(",")]
-    .map((v) => (typeof v === "string" ? v.trim() : ""))
-    .filter(Boolean);
+  const lineTargets = [
+    ...new Set(
+      [env.LINE_USER_ID, ...String(env.LINE_GROUP_ID || "").split(","), ...(await getGroups(env))]
+        .map((v) => (typeof v === "string" ? v.trim() : ""))
+        .filter(Boolean)
+    ),
+  ];
   if (env.LINE_CHANNEL_TOKEN && lineTargets.length && (isFirst || CONTACT_RE.test(question))) {
     for (const to of lineTargets) {
       jobs.push(
@@ -74,9 +78,45 @@ async function notify(env, question, reply, isFirst) {
   }
 }
 
+// ---- LINE groups, stored in KV (binding STORE, key "line_groups").
+// The bot joins a group -> if the owner (LINE_USER_ID) is a member, the group is saved and starts
+// getting alerts automatically. Bot removed from the group -> it is deleted. In a group, the owner
+// can also type "ปิดแจ้งเตือน" / "เปิดแจ้งเตือน" to turn alerts off / on for that group.
+async function getGroups(env) {
+  if (!env.STORE) return [];
+  try {
+    return JSON.parse((await env.STORE.get("line_groups")) || "[]");
+  } catch {
+    return [];
+  }
+}
+async function setGroup(env, id, on) {
+  if (!env.STORE) return;
+  const groups = (await getGroups(env)).filter((g) => g !== id);
+  if (on) groups.push(id);
+  await env.STORE.put("line_groups", JSON.stringify(groups));
+}
+const lineApi = (env, path, init = {}) =>
+  fetch("https://api.line.me" + path, {
+    ...init,
+    headers: { "content-type": "application/json", authorization: `Bearer ${env.LINE_CHANNEL_TOKEN.trim()}` },
+  });
+async function ownerInGroup(env, src) {
+  const owner = typeof env.LINE_USER_ID === "string" ? env.LINE_USER_ID.trim() : "";
+  if (!owner) return false;
+  const path = src.groupId ? `/v2/bot/group/${src.groupId}/member/${owner}` : `/v2/bot/room/${src.roomId}/member/${owner}`;
+  const r = await lineApi(env, path);
+  return r.ok;
+}
+async function lineReply(env, replyToken, text) {
+  const r = await lineApi(env, "/v2/bot/message/reply", {
+    method: "POST",
+    body: JSON.stringify({ replyToken, messages: [{ type: "text", text }] }),
+  });
+  if (!r.ok) console.error("LINE reply HTTP", r.status, await r.text());
+}
+
 // ---- LINE webhook (POST /api/line-webhook). Needs secret LINE_CHANNEL_SECRET.
-// When the bot is added to a group (or someone in a group types "groupid"), it replies with the
-// group ID so it can be saved as LINE_GROUP_ID. Replies are free (they don't use the push quota).
 async function lineWebhook(request, env) {
   const body = await request.text();
   const secret = typeof env.LINE_CHANNEL_SECRET === "string" ? env.LINE_CHANNEL_SECRET.trim() : "";
@@ -89,20 +129,36 @@ async function lineWebhook(request, env) {
   try {
     events = JSON.parse(body).events || [];
   } catch {}
+  const owner = typeof env.LINE_USER_ID === "string" ? env.LINE_USER_ID.trim() : "";
   for (const ev of events) {
     const src = ev.source || {};
     const id = src.groupId || src.roomId;
-    const asked = ev.type === "message" && ev.message?.type === "text" && /^\s*group\s*id\s*$/i.test(ev.message.text || "");
-    if (!id || !ev.replyToken || !(ev.type === "join" || asked)) continue;
-    const text =
-      "สวัสดีครับ SESS แจ้งเตือน พร้อมส่งคำถามจากเว็บ sess-th.com เข้ากลุ่มนี้\n\n" +
-      "นำรหัสกลุ่มด้านล่างไปใส่ใน Cloudflare ชื่อ LINE_GROUP_ID\n\n" + id;
-    const r = await fetch("https://api.line.me/v2/bot/message/reply", {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${env.LINE_CHANNEL_TOKEN.trim()}` },
-      body: JSON.stringify({ replyToken: ev.replyToken, messages: [{ type: "text", text }] }),
-    });
-    if (!r.ok) console.error("LINE reply HTTP", r.status, await r.text());
+    if (!id) continue;
+    try {
+      if (ev.type === "leave") {
+        await setGroup(env, id, false);
+      } else if (ev.type === "join") {
+        if (await ownerInGroup(env, src)) {
+          await setGroup(env, id, true);
+          await lineReply(env, ev.replyToken,
+            "สวัสดีครับ 🔔 SESS แจ้งเตือน จะส่งคำถามลูกค้าจากเว็บ sess-th.com เข้ากลุ่มนี้แล้วครับ\n(เจ้าของบัญชีพิมพ์ \"ปิดแจ้งเตือน\" เพื่อหยุด หรือนำบอทออกจากกลุ่ม)");
+        } else {
+          await lineReply(env, ev.replyToken,
+            "SESS แจ้งเตือน: กลุ่มนี้ยังไม่ได้เปิดรับแจ้งเตือน ต้องมีเจ้าของบัญชีอยู่ในกลุ่ม แล้วพิมพ์ \"เปิดแจ้งเตือน\" ครับ");
+        }
+      } else if (ev.type === "message" && ev.message?.type === "text" && src.userId && src.userId === owner) {
+        const t = (ev.message.text || "").trim();
+        if (t === "เปิดแจ้งเตือน") {
+          await setGroup(env, id, true);
+          await lineReply(env, ev.replyToken, "✅ เปิดแจ้งเตือนคำถามจากเว็บ sess-th.com ในกลุ่มนี้แล้วครับ");
+        } else if (t === "ปิดแจ้งเตือน") {
+          await setGroup(env, id, false);
+          await lineReply(env, ev.replyToken, "🔕 ปิดแจ้งเตือนในกลุ่มนี้แล้วครับ");
+        }
+      }
+    } catch (err) {
+      console.error("LINE webhook error", err && err.message);
+    }
   }
   return new Response("ok");
 }
@@ -119,8 +175,8 @@ async function notifyTest(url, env) {
     line_token_set: !!t(env.LINE_CHANNEL_TOKEN),
     line_user_set: !!lineUser,
     line_user_format_ok: /^U[0-9a-f]{32}$/.test(lineUser),
-    line_secret_set: !!t(env.LINE_CHANNEL_SECRET),
-    line_groups_set: String(env.LINE_GROUP_ID || "").split(",").filter((v) => /^[CR][0-9a-f]{32}$/.test(v.trim())).length,
+    line_secret_ok_for_groups: !!t(env.LINE_CHANNEL_SECRET),
+    line_groups_auto: (await getGroups(env)).length,
   };
   const code = url.searchParams.get("code");
   if (!code) return json(out);

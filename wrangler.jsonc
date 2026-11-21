@@ -3,6 +3,7 @@
   "main": "worker.js",
   "compatibility_date": "2026-11-01",
   "assets": { "directory": ".", "binding": "ASSETS" },
+  "kv_namespaces": [{ "binding": "STORE", "id": "fa8d147c927f4ca1aaef8ed45036ba87" }],
   "ai": { "binding": "AI" },
   "observability": { "enabled": true }
 }
