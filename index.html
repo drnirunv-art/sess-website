@@ -117,6 +117,27 @@ section.alt{background:var(--soft)}
 @media (max-width:900px){.cgrid{grid-template-columns:1fr}}
 footer{background:var(--blue);color:rgba(255,255,255,.9);font-size:15px;padding:24px 0}
 footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+/* chat */
+.chat-fab{position:fixed;right:20px;bottom:20px;z-index:60;display:flex;align-items:center;gap:8px;background:var(--blue);color:#fff;border:0;border-radius:999px;padding:14px 20px;font:600 16px "Noto Sans Thai",Inter,sans-serif;box-shadow:0 10px 24px rgba(21,101,216,.35);cursor:pointer}
+.chat-fab svg{width:22px;height:22px}
+.chat-box{position:fixed;right:20px;bottom:86px;z-index:61;width:min(380px,calc(100vw - 32px));height:min(560px,calc(100vh - 120px));background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(6,0,63,.25);display:none;flex-direction:column;overflow:hidden;border:1px solid var(--line)}
+.chat-box.open{display:flex}
+.chat-hd{background:linear-gradient(120deg,#1257C9,var(--sky));color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px}
+.chat-hd b{font-size:16px;display:block}.chat-hd small{font-size:12.5px;opacity:.9}
+.chat-hd button{margin-left:auto;background:none;border:0;color:#fff;font-size:24px;line-height:1;cursor:pointer}
+.chat-log{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--soft)}
+.msg{max-width:85%;padding:10px 13px;border-radius:14px;font-size:15.5px;line-height:1.55;white-space:pre-wrap;word-wrap:break-word}
+.msg.bot{background:#fff;border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:4px}
+.msg.me{background:var(--blue);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.msg.wait{color:var(--muted);font-style:italic}
+.chips2{display:flex;flex-wrap:wrap;gap:6px}
+.chips2 button{border:1px solid #CFE0FA;background:#fff;color:var(--blue);border-radius:999px;padding:6px 12px;font:500 13.5px "Noto Sans Thai",Inter,sans-serif;cursor:pointer}
+.chat-in{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);background:#fff}
+.chat-in input{flex:1;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:15.5px "Noto Sans Thai",Inter,sans-serif;min-width:0}
+.chat-in button{background:var(--blue);color:#fff;border:0;border-radius:10px;padding:0 16px;font:600 15px "Noto Sans Thai",Inter,sans-serif;cursor:pointer}
+.chat-in button:disabled{opacity:.5}
+.chat-note{font-size:11.5px;color:var(--muted);text-align:center;padding:0 10px 8px;background:#fff}
+@media (max-width:600px){.chat-fab span{display:none}.chat-fab{padding:14px}}
 </style>
 </head>
 <body>
@@ -338,6 +359,60 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
   var s=null;try{s=localStorage.getItem('sess-lang')}catch(e){}
   if(s==='en'||s==='th')set(s);
   document.getElementById('y').textContent=new Date().getFullYear();
+})();
+</script>
+<button class="chat-fab" id="chatFab" aria-label="Chat">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 01-11.6 7.1L4 20l1-4.6A8 8 0 1121 12z"/></svg>
+  <span class="th">ถาม AI ของเรา</span><span class="en">Ask our AI</span>
+</button>
+<div class="chat-box" id="chatBox" role="dialog" aria-label="SESS AI chat">
+  <div class="chat-hd">
+    <img src="logo.svg" alt="" style="width:30px;height:32px;background:#fff;border-radius:8px;padding:3px">
+    <div><b>SESS AI Assistant</b><small class="th">ตอบคำถามเรื่องบริการของเรา</small><small class="en">Ask about our services</small></div>
+    <button id="chatClose" aria-label="Close">×</button>
+  </div>
+  <div class="chat-log" id="chatLog"></div>
+  <form class="chat-in" id="chatForm">
+    <input id="chatInput" maxlength="500" autocomplete="off" placeholder="พิมพ์คำถาม... / Type your question...">
+    <button id="chatSend" type="submit"><span class="th">ส่ง</span><span class="en">Send</span></button>
+  </form>
+  <div class="chat-note"><span class="th">คำตอบจาก AI อาจคลาดเคลื่อน กรุณายืนยันกับเจ้าหน้าที่ 065-653-5655</span><span class="en">AI answers may be inaccurate. Please confirm with our team at 065-653-5655.</span></div>
+</div>
+
+<script>
+(function(){
+  var fab=document.getElementById('chatFab'),box=document.getElementById('chatBox'),log=document.getElementById('chatLog'),
+      form=document.getElementById('chatForm'),input=document.getElementById('chatInput'),send=document.getElementById('chatSend'),
+      hist=[],started=false,busy=false;
+  function th(){return document.documentElement.lang!=='en'}
+  function add(cls,text){var d=document.createElement('div');d.className='msg '+cls;d.textContent=text;log.appendChild(d);log.scrollTop=log.scrollHeight;return d}
+  function start(){
+    if(started)return;started=true;
+    add('bot',th()?'สวัสดีครับ ผมคือผู้ช่วย AI ของ SESS ยินดีตอบคำถามเรื่องบริการด้านวิศวกรรมอาคาร พลังงาน ตรวจสอบอาคาร รับเหมาก่อสร้าง เครื่องมือแพทย์ และบริหารอาคาร (FM) ครับ':'Hello! I am the SESS AI assistant. Ask me about our building engineering, energy, inspection, construction, medical equipment and FM services.');
+    var qs=th()?['SESS ให้บริการอะไรบ้าง','มีประสบการณ์กับโรงพยาบาลไหนบ้าง','ช่วยลดค่าไฟอาคารได้อย่างไร','ติดต่อขอใบเสนอราคา']:['What services do you offer?','Hospital experience?','How can you cut energy costs?','How do I get a quote?'];
+    var c=document.createElement('div');c.className='chips2';
+    qs.forEach(function(q){var b=document.createElement('button');b.type='button';b.textContent=q;b.onclick=function(){c.remove();ask(q)};c.appendChild(b)});
+    log.appendChild(c);
+  }
+  function ask(q){
+    if(busy||!q)return;busy=true;send.disabled=true;
+    add('me',q);hist.push({role:'user',content:q});
+    var w=add('bot wait',th()?'กำลังพิมพ์...':'Typing...');
+    fetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages:hist.slice(-8)})})
+      .then(function(r){return r.json()})
+      .then(function(d){
+        if(!d.reply)throw new Error('no reply');
+        w.className='msg bot';w.textContent=d.reply;hist.push({role:'assistant',content:d.reply});
+      })
+      .catch(function(){
+        w.className='msg bot';w.textContent=th()?'ขออภัยครับ ระบบ AI ไม่พร้อมใช้งานชั่วคราว กรุณาโทร 065-653-5655 หรืออีเมล sess.phd@gmail.com':'Sorry, the AI assistant is unavailable right now. Please call 065-653-5655 or email sess.phd@gmail.com.';
+        hist.pop();
+      })
+      .finally(function(){busy=false;send.disabled=false;log.scrollTop=log.scrollHeight;input.focus()});
+  }
+  fab.onclick=function(){box.classList.toggle('open');if(box.classList.contains('open')){start();input.focus()}};
+  document.getElementById('chatClose').onclick=function(){box.classList.remove('open')};
+  form.onsubmit=function(e){e.preventDefault();var q=input.value.trim();input.value='';ask(q)};
 })();
 </script>
 </body>
